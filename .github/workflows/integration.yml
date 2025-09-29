@@ -14,7 +14,7 @@ jobs:
     - name: Build project assets
       run: npm run build
     - name: upload static site content
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: static-site-content
         path: .next/
