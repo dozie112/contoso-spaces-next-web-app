@@ -1,21 +1,51 @@
 name: Build Next.js web application
-on: push    
+
+on:
+  push:
+    branches: [ "main" ]
+
 jobs:
   build-project:
     name: Build project
     runs-on: ubuntu-latest
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Install NPM dependencies
-      run: npm install
+      - name: Use Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
 
-    - name: Build project assets
-      run: npm run build
-    - name: upload static site content
-      uses: actions/upload-artifact@v4
-      with:
-        name: static-site-content
-        path: .next/
+      - name: Install dependencies
+        run: npm install
 
+      - name: Build
+        run: npm run build
+
+      - name: Debug build outputs
+        run: |
+          echo "Root:"
+          ls -la
+          echo ".next:"
+          ls -la .next || true
+          echo "out:"
+          ls -la out || true
+
+      # Upload .next (SSR build)
+      - name: Upload .next artifact (if present)
+        if: ${{ hashFiles('.next/**') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-build
+          path: .next
+
+      # Upload out (static export)
+      - name: Upload out artifact (if present)
+        if: ${{ hashFiles('out/**') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-export
+          path: out
