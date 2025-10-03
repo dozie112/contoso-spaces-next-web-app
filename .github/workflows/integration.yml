@@ -4,6 +4,10 @@ on:
   push:
     branches: [ "main" ]
 
+# needed so the workflow can create a Release
+permissions:
+  contents: write
+
 jobs:
   build-project:
     name: Build project
@@ -26,12 +30,9 @@ jobs:
 
       - name: Debug build outputs
         run: |
-          echo "Root:"
-          ls -la
-          echo ".next:"
-          ls -la .next || true
-          echo "out:"
-          ls -la out || true
+          echo "Root:" && ls -la
+          echo ".next:" && (ls -la .next || true)
+          echo "out:" && (ls -la out || true)
 
       # Upload .next (SSR build)
       - name: Upload .next artifact (if present)
@@ -55,11 +56,27 @@ jobs:
     needs: build-project
 
     steps:
+      # download the static export produced by build (adjust to next-build if you prefer SSR)
       - name: Download static export (out/)
         uses: actions/download-artifact@v4
         with:
-          name: next-export         # must match the name used in the upload step
+          name: next-export            # must match the upload-artifact "name"
           path: site
 
       - name: Display structure of downloaded files
         run: ls -R site
+
+      # zip the downloaded site into a single file
+      - name: Create ZIP
+        run: |
+          cd site
+          zip -r ../site-out-${{ github.run_number }}.zip .
+          cd ..
+
+      # create a GitHub Release and attach the ZIP
+      - name: Create GitHub Release with asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Release ${{ github.run_number }}
+          files: site-out-${{ github.run_number }}.zip
