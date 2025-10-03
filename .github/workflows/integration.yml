@@ -1,10 +1,10 @@
-name: Build Next.js web application
+name: Build and Release Next.js web application
 
 on:
   push:
     branches: [ "main" ]
 
-# needed so the workflow can create a Release
+# Allow the workflow to publish releases
 permissions:
   contents: write
 
@@ -51,34 +51,50 @@ jobs:
           path: out
 
   release-project:
-    name: Release project
+    name: Create and Upload GitHub Release
     runs-on: ubuntu-latest
     needs: build-project
+
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
-      # download the static export produced by build (adjust to next-build if you prefer SSR)
+      # Download the exported build artifact
       - name: Download static export (out/)
         uses: actions/download-artifact@v4
         with:
-          name: next-export            # must match the upload-artifact "name"
+          name: next-export
           path: site
 
       - name: Display structure of downloaded files
         run: ls -R site
 
-      # zip the downloaded site into a single file
-      - name: Create ZIP
+      # Zip the downloaded site for release
+      - name: Create ZIP archive
         run: |
           cd site
-          zip -r ../site-out-${{ github.run_number }}.zip .
+          zip -r ../site-v${{ github.run_number }}.zip .
           cd ..
 
-      # create a GitHub Release and attach the ZIP
-      - name: Create GitHub Release with asset
-        uses: softprops/action-gh-release@v2
+      # Create a GitHub release (with tag)
+      - name: Create GitHub Release
+        id: create_new_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: v${{ github.run_number }}
-          name: Release ${{ github.run_number }}
-          files: site-out-${{ github.run_number }}.zip
+          release_name: "Release ${{ github.run_number }}"
+          draft: false
+          prerelease: false
+
+      # Upload ZIP file to the GitHub Release
+      - name: Upload Release Asset (ZIP)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_new_release.outputs.upload_url }}
+          asset_path: ./site-v${{ github.run_number }}.zip
+          asset_name: site-v${{ github.run_number }}.zip
+          asset_content_type: application/zip
