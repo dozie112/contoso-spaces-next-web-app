@@ -49,6 +49,21 @@ jobs:
         with:
           name: next-export
           path: out
+      - name: Export static site (if not already exporting)
+        run: npx next export || true
+
+      - name: Start static server for smoke test
+        run: |
+          npx serve -s out -l 3000 &
+          echo $! > /tmp/serve.pid
+          sleep 2
+
+      - name: Smoke test homepage
+        run: |
+          set -e
+          curl -fI http://localhost:3000/ | tee /tmp/curl_home.txt
+          pkill -F /tmp/serve.pid || true
+
 
   release-project:
     name: Create and Upload GitHub Release
